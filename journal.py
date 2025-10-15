@@ -53,17 +53,20 @@ if "auth" not in st.session_state:
 def do_sign_in(email: str, password: str):
     try:
         res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-        # Aplicar token al cliente PostgREST (necesario para RLS)
         if res.user and res.session:
-    st.session_state.auth = {
-        "user": res.user,
-        "access_token": res.session.access_token
-    }
-    # Guarda el token localmente (persistente entre refresh)
-    st.experimental_set_query_params(token=res.session.access_token)
-        return True, None
+            token = res.session.access_token
+            # Aplica el token al cliente PostgREST (para que las queries tengan RLS)
+            supabase.postgrest.auth(token)
+            # Guarda la sesión en Streamlit
+            st.session_state.auth = {"user": res.user, "access_token": token}
+            # Guarda el token localmente en la URL (persiste tras refresh)
+            st.experimental_set_query_params(token=token)
+            return True, None
+        else:
+            return False, "Credenciales inválidas"
     except Exception as e:
         return False, str(e)
+
 
 
 def do_sign_up(email: str, password: str):
@@ -83,7 +86,7 @@ def do_sign_out():
     except Exception:
         pass
     st.session_state.auth = {"user": None, "access_token": None}
-    st.experimental_set_query_params()  # Limpia el token
+    st.experimental_set_query_params()  # Limpia token en URL
     st.rerun()
 
 
@@ -440,6 +443,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
