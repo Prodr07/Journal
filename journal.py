@@ -12,15 +12,6 @@ from supabase import create_client
 
 
 
-"""
-Trading Journal Pro — Supabase (solo "Trades") v1
-- Sin CSV. Solo base de datos Supabase.
-- Usa ÚNICAMENTE la tabla public."Trades" (con columnas: id, "User_id" uuid, fecha, semana, dia, trade, symbol, point, be, created_at)
-- Auth por email+password (Supabase Auth)
-- RLS por usuario (auth.uid() = "User_id")
-- Requiere en st.secrets: SUPABASE_URL, SUPABASE_ANON_KEY
-"""
-
 # =========================
 # ⚙️ Conexión Supabase
 # =========================
@@ -440,6 +431,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
