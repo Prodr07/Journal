@@ -21,8 +21,6 @@ Trading Journal Pro — Supabase (solo "Trades") v1
 - Requiere en st.secrets: SUPABASE_URL, SUPABASE_ANON_KEY
 """
 
-st.set_page_config(page_title="Trading Journal Pro — Supabase", layout="wide")
-
 # =========================
 # ⚙️ Conexión Supabase
 # =========================
@@ -433,6 +431,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
