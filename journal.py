@@ -132,7 +132,7 @@ def parse_trades_cell(cell: str):
 def fetch_trades(user_id: str) -> pd.DataFrame:
     data = (
         supabase
-        .table("\"Trades\"")  # comillas porque la tabla tiene T mayúscula
+        .table("Trades")  # comillas porque la tabla tiene T mayúscula
         .select('id,"User_id",fecha,semana,dia,symbol,point,be,trade,created_at')
         .eq("User_id", user_id)
         .order("fecha", desc=False)
@@ -433,6 +433,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
