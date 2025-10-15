@@ -158,7 +158,7 @@ def insert_trade_entries(user_id: str, fecha_val: date, semana_txt: str, dia_txt
             "trade": trade_text,
         })
     if batch:
-        supabase.table("\"Trades\"").insert(batch).execute()
+        supabase.table("Trades").insert(batch).execute()
 
 # =========================
 # 📊 Métricas
@@ -430,6 +430,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
