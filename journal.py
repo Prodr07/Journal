@@ -54,10 +54,13 @@ def do_sign_in(email: str, password: str):
     try:
         res = supabase.auth.sign_in_with_password({"email": email, "password": password})
         # Aplicar token al cliente PostgREST (necesario para RLS)
-        if res.session and res.session.access_token:
-            supabase.postgrest.auth(res.session.access_token)
-        st.session_state.auth["user"] = res.user
-        st.session_state.auth["access_token"] = res.session.access_token if res.session else None
+        if res.user and res.session:
+    st.session_state.auth = {
+        "user": res.user,
+        "access_token": res.session.access_token
+    }
+    # Guarda el token localmente (persistente entre refresh)
+    st.experimental_set_query_params(token=res.session.access_token)
         return True, None
     except Exception as e:
         return False, str(e)
@@ -79,12 +82,10 @@ def do_sign_out():
         supabase.auth.sign_out()
     except Exception:
         pass
-    try:
-        # Volvemos al rol anónimo en PostgREST
-        supabase.postgrest.auth(SUPABASE_KEY)
-    except Exception:
-        pass
     st.session_state.auth = {"user": None, "access_token": None}
+    st.experimental_set_query_params()  # Limpia el token
+    st.rerun()
+
 
 # =========================
 # 🧩 Parsing de trades
@@ -246,6 +247,14 @@ def compute_metrics(df_trades: pd.DataFrame):
         "expectancy": float(expectancy),
         "max_dd": int(max_dd),
     }
+    # Revisar si hay token persistente en la URL
+params = st.experimental_get_query_params()
+if "token" in params:
+    token = params["token"][0]
+    supabase.postgrest.auth(token)
+    user = supabase.auth.get_user(token)
+    if user and user.user:
+        st.session_state.auth = {"user": user.user, "access_token": token}
 
 # =========================
 # 🔑 Login UI
@@ -431,6 +440,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
