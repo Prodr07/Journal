@@ -6,10 +6,10 @@ from datetime import datetime, date
 import calendar
 import re
 
-# ⬇️ PRIMERA llamada de Streamlit
 st.set_page_config(page_title="Trading Journal Pro — Supabase", layout="wide")
 
 from supabase import create_client
+
 
 
 """
@@ -433,5 +433,6 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
