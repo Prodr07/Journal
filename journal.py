@@ -316,7 +316,39 @@ def app_view():
 
     st.title("📊 Trading Journal Pro — Supabase")
 
+   # Mes actual filtrado
+    df_m = month_filter(df, year_sel, month_sel)
+    if sym_choice:
+        df_m = df_m[(df_m["symbol"].isin(sym_choice)) | (df_m["symbol"].isna())]
 
+    st.subheader(f"Equity Mensual — {MONTHS[month_sel-1]} {year_sel}")
+    if not df_m.empty:
+        df_m = df_m.copy()
+        df_m["point"] = df_m["point"].astype(float)
+        df_m["pts"] = df_m.apply(lambda r: 0 if bool(r.get("be", False)) else int(r.get("point") or 0), axis=1)
+        df_m = df_m.sort_values("fecha")
+        df_m_eq = df_m[["fecha","pts"]].copy()
+        df_m_eq["equity_m"] = df_m_eq["pts"].cumsum()
+        chart_m = alt.Chart(df_m_eq).mark_line(point=True).encode(
+            x=alt.X("fecha:T", title="Fecha"),
+            y=alt.Y("equity_m:Q", title="Puntos acumulados (mes)"),
+            tooltip=["fecha:T","equity_m:Q"],
+        ).properties(height=300)
+        st.altair_chart(chart_m, use_container_width=True)
+    else:
+        st.info("Sin trades en el mes seleccionado.")
+
+
+          # Calendario mensual (suma por día)
+    st.subheader("Calendario Mensual")
+    if not df_m.empty:
+        df_m_grp = df_m.groupby(pd.to_datetime(df_m["fecha"]).dt.day).agg(puntos=("point", lambda s: int(np.nansum([0 if pd.isna(x) else x for x in s])))).reset_index()
+        daily_map = {int(r["fecha"] if "fecha" in r else r["day"]): int(r["puntos"]) for _, r in df_m_grp.rename(columns={"fecha":"day"}).iterrows()}
+    else:
+        daily_map = {}
+    st.markdown(calendar_html(year_sel, month_sel, daily_map), unsafe_allow_html=True)
+
+    st.markdown("---")
 
 
     # Métricas globales
@@ -346,39 +378,7 @@ def app_view():
 
     st.markdown("---")
 
-    # Mes actual filtrado
-    df_m = month_filter(df, year_sel, month_sel)
-    if sym_choice:
-        df_m = df_m[(df_m["symbol"].isin(sym_choice)) | (df_m["symbol"].isna())]
-
-    st.subheader(f"Equity Mensual — {MONTHS[month_sel-1]} {year_sel}")
-    if not df_m.empty:
-        df_m = df_m.copy()
-        df_m["point"] = df_m["point"].astype(float)
-        df_m["pts"] = df_m.apply(lambda r: 0 if bool(r.get("be", False)) else int(r.get("point") or 0), axis=1)
-        df_m = df_m.sort_values("fecha")
-        df_m_eq = df_m[["fecha","pts"]].copy()
-        df_m_eq["equity_m"] = df_m_eq["pts"].cumsum()
-        chart_m = alt.Chart(df_m_eq).mark_line(point=True).encode(
-            x=alt.X("fecha:T", title="Fecha"),
-            y=alt.Y("equity_m:Q", title="Puntos acumulados (mes)"),
-            tooltip=["fecha:T","equity_m:Q"],
-        ).properties(height=300)
-        st.altair_chart(chart_m, use_container_width=True)
-    else:
-        st.info("Sin trades en el mes seleccionado.")
-
-
-          # Calendario mensual (suma por día)
-    st.subheader("Calendario Mensual (suma por día)")
-    if not df_m.empty:
-        df_m_grp = df_m.groupby(pd.to_datetime(df_m["fecha"]).dt.day).agg(puntos=("point", lambda s: int(np.nansum([0 if pd.isna(x) else x for x in s])))).reset_index()
-        daily_map = {int(r["fecha"] if "fecha" in r else r["day"]): int(r["puntos"]) for _, r in df_m_grp.rename(columns={"fecha":"day"}).iterrows()}
-    else:
-        daily_map = {}
-    st.markdown(calendar_html(year_sel, month_sel, daily_map), unsafe_allow_html=True)
-
-    st.markdown("---")
+ 
   
 
     # Tabs
@@ -440,6 +440,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
