@@ -316,6 +316,18 @@ def app_view():
 
     st.title("📊 Trading Journal Pro — Supabase")
 
+      # Calendario mensual (suma por día)
+    st.subheader("Calendario Mensual (suma por día)")
+    if not df_m.empty:
+        df_m_grp = df_m.groupby(pd.to_datetime(df_m["fecha"]).dt.day).agg(puntos=("point", lambda s: int(np.nansum([0 if pd.isna(x) else x for x in s])))).reset_index()
+        daily_map = {int(r["fecha"] if "fecha" in r else r["day"]): int(r["puntos"]) for _, r in df_m_grp.rename(columns={"fecha":"day"}).iterrows()}
+    else:
+        daily_map = {}
+    st.markdown(calendar_html(year_sel, month_sel, daily_map), unsafe_allow_html=True)
+
+    st.markdown("---")
+
+
     # Métricas globales
     metrics = compute_metrics(df)
     colA, colB = st.columns([2,1])
@@ -365,16 +377,7 @@ def app_view():
     else:
         st.info("Sin trades en el mes seleccionado.")
 
-    # Calendario mensual (suma por día)
-    st.subheader("Calendario Mensual (suma por día)")
-    if not df_m.empty:
-        df_m_grp = df_m.groupby(pd.to_datetime(df_m["fecha"]).dt.day).agg(puntos=("point", lambda s: int(np.nansum([0 if pd.isna(x) else x for x in s])))).reset_index()
-        daily_map = {int(r["fecha"] if "fecha" in r else r["day"]): int(r["puntos"]) for _, r in df_m_grp.rename(columns={"fecha":"day"}).iterrows()}
-    else:
-        daily_map = {}
-    st.markdown(calendar_html(year_sel, month_sel, daily_map), unsafe_allow_html=True)
-
-    st.markdown("---")
+  
 
     # Tabs
     tab1, tab2, tab3 = st.tabs(["📋 Histórico", "➕ Agregar Trade", "🗓️ Resumen por Meses"]) 
@@ -435,6 +438,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
