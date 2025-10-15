@@ -88,8 +88,11 @@ def do_sign_out():
         supabase.auth.sign_out()
     except Exception:
         pass
-    # Limpiar credenciales del cliente PostgREST
-    supabase.postgrest.auth(None)
+    try:
+        # Volvemos al rol anónimo en PostgREST
+        supabase.postgrest.auth(SUPABASE_KEY)
+    except Exception:
+        pass
     st.session_state.auth = {"user": None, "access_token": None}
 
 # =========================
@@ -430,6 +433,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
