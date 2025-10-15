@@ -304,7 +304,7 @@ def login_view():
             if not ok:
                 st.error(f"Error: {err}")
             else:
-                st.experimental_rerun()
+                st.rerun()
 
 
 # -------------------------
@@ -321,7 +321,7 @@ def app_view():
 
     st.sidebar.write(f"👤 Usuario: **{user.email}**")
     if st.sidebar.button("Cerrar sesión"):
-        do_sign_out(); st.experimental_rerun()
+        do_sign_out(); st.rerun()
 
     # Datos
     df = fetch_trades(user_id)
@@ -519,3 +519,4 @@ with st.expander("ℹ️ Instrucciones de Supabase (admin)"):
         ```
         """
     )
+
