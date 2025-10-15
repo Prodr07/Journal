@@ -24,7 +24,6 @@ Trading Journal Pro — Supabase (solo "Trades") v1
 # =========================
 # ⚙️ Conexión Supabase
 # =========================
-from supabase import create_client
 
 SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
 SUPABASE_KEY = st.secrets.get("SUPABASE_ANON_KEY", "")
@@ -431,6 +430,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
