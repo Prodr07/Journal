@@ -163,6 +163,49 @@ def insert_trade_entries(user_id: str, fecha_val: date, semana_txt: str, dia_txt
     if batch:
         supabase.table("Trades").insert(batch).execute()
 
+
+# =========================
+# 🧮 Helpers de vistas
+# =========================
+MONTHS = MONTHS_ES
+
+def month_filter(df: pd.DataFrame, year: int, month: int) -> pd.DataFrame:
+    return df[(pd.to_datetime(df["fecha"]).dt.year == year) & (pd.to_datetime(df["fecha"]).dt.month == month)].copy()
+
+
+def calendar_html(year: int, month: int, daily_points: dict):
+    def bg_color(p):
+        if pd.isna(p):
+            return "#ffffff"
+        if p > 200: return "#d4edda"
+        if p > 100: return "#e8f5e8"
+        if p > 50:  return "#f0f9f0"
+        if p > 0:   return "#f8fdf8"
+        if p < -100: return "#f8d7da"
+        if p < -50:  return "#fae6e8"
+        if p < 0:    return "#fdf0f2"
+        return "#ffffff"
+
+    cal = calendar.Calendar(firstweekday=6)
+    month_days = cal.monthdayscalendar(year, month)
+    html = "<table class='calendar'>\n<tr><th>DOM</th><th>LUN</th><th>MAR</th><th>MIE</th><th>JUE</th><th>VIE</th><th>SAB</th></tr>\n"
+    for week in month_days:
+        html += "<tr>"
+        for d in week:
+            if d == 0:
+                html += "<td></td>"
+            else:
+                pts = daily_points.get(d, 0)
+                color = bg_color(pts)
+                html += f"<td style='background:{color}'>"
+                html += f"<span class='day-number'>{d}</span>"
+                html += f"<span class='badge'>{int(pts)}</span>"
+                html += "</td>"
+        html += "</tr>"
+    html += "</table>"
+    return html
+
+
 # =========================
 # 📊 Métricas
 # =========================
@@ -212,47 +255,6 @@ def compute_metrics(df_trades: pd.DataFrame):
         "expectancy": float(expectancy),
         "max_dd": int(max_dd),
     }
-
-# =========================
-# 🧮 Helpers de vistas
-# =========================
-MONTHS = MONTHS_ES
-
-def month_filter(df: pd.DataFrame, year: int, month: int) -> pd.DataFrame:
-    return df[(pd.to_datetime(df["fecha"]).dt.year == year) & (pd.to_datetime(df["fecha"]).dt.month == month)].copy()
-
-
-def calendar_html(year: int, month: int, daily_points: dict):
-    def bg_color(p):
-        if pd.isna(p):
-            return "#ffffff"
-        if p > 200: return "#d4edda"
-        if p > 100: return "#e8f5e8"
-        if p > 50:  return "#f0f9f0"
-        if p > 0:   return "#f8fdf8"
-        if p < -100: return "#f8d7da"
-        if p < -50:  return "#fae6e8"
-        if p < 0:    return "#fdf0f2"
-        return "#ffffff"
-
-    cal = calendar.Calendar(firstweekday=6)
-    month_days = cal.monthdayscalendar(year, month)
-    html = "<table class='calendar'>\n<tr><th>DOM</th><th>LUN</th><th>MAR</th><th>MIE</th><th>JUE</th><th>VIE</th><th>SAB</th></tr>\n"
-    for week in month_days:
-        html += "<tr>"
-        for d in week:
-            if d == 0:
-                html += "<td></td>"
-            else:
-                pts = daily_points.get(d, 0)
-                color = bg_color(pts)
-                html += f"<td style='background:{color}'>"
-                html += f"<span class='day-number'>{d}</span>"
-                html += f"<span class='badge'>{int(pts)}</span>"
-                html += "</td>"
-        html += "</tr>"
-    html += "</table>"
-    return html
 
 # =========================
 # 🔑 Login UI
@@ -433,6 +435,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
