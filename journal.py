@@ -67,6 +67,12 @@ def do_sign_in(email: str, password: str):
         return True, None
     except Exception as e:
         return False, str(e)
+    # dentro de do_sign_in(...)
+res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+supabase.postgrest.auth(res.session.access_token)   # <-- añade esto
+st.session_state.auth["user"] = res.user
+st.session_state.auth["access_token"] = res.session.access_token if res.session else None
+
 
 
 def do_sign_up(email: str, password: str):
@@ -83,6 +89,7 @@ def do_sign_out():
         supabase.auth.sign_out()
     except Exception:
         pass
+    supabase.postgrest.auth(None)  # <-- añade esto
     st.session_state.auth = {"user": None, "access_token": None}
 
 
@@ -519,4 +526,5 @@ with st.expander("ℹ️ Instrucciones de Supabase (admin)"):
         ```
         """
     )
+
 
