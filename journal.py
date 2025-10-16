@@ -448,6 +448,20 @@ def app_view():
     else:
         daily_map = {}
     st.markdown(calendar_html(year_sel, month_sel, daily_map), unsafe_allow_html=True)
+# df_m: DataFrame del mes filtrado (ya con columnas: fecha, point, be, etc.)
+# Si ahora trabajas en %, usa la columna 'point' como porcentaje.
+df_m_cal = df_m.copy()
+df_m_cal["day"] = pd.to_datetime(df_m_cal["fecha"]).dt.day
+
+# Suma del día (ignora BE si be == True)
+df_m_cal["pts"] = df_m_cal.apply(lambda r: 0 if bool(r.get("be", False)) else float(r.get("point") or 0), axis=1)
+
+daily_points = df_m_cal.groupby("day")["pts"].sum().to_dict()          # {día: suma}
+daily_counts = df_m_cal.groupby("day")["pts"].count().to_dict()        # {día: cantidad}
+
+st.subheader(f"Calendario Mensual — {MONTHS[month_sel-1]} {year_sel}")
+html = calendar_html(year_sel, month_sel, daily_points, daily_counts)
+st.markdown(html, unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -560,6 +574,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
