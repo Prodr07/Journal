@@ -317,10 +317,9 @@ def login_view():
 def app_view():
     user = st.session_state.auth.get("user")
     if not user:
-        st.error("Sesión inválida. Vuelve a iniciar sesión.")
-        do_sign_out(); st.stop()
+        st.error("Sesión inválida."); do_sign_out(); st.stop()
 
-    # Asegura token aplicado si se recarga la página
+    # Asegura token para RLS
     if st.session_state.auth.get("access_token"):
         supabase.postgrest.auth(st.session_state.auth["access_token"])
 
@@ -328,63 +327,55 @@ def app_view():
     if st.sidebar.button("Cerrar sesión"):
         do_sign_out(); st.rerun()
 
-    # Datos
+    # 1) Cargar datos
     df = fetch_trades(user.id)
 
-    # Filtros
+    # 2) Filtros
     years = sorted(pd.to_datetime(df["fecha"]).dt.year.unique()) if not df.empty else [datetime.now().year]
     year_sel = st.sidebar.selectbox("Año", years, index=len(years)-1)
     month_name = st.sidebar.selectbox("Mes", MONTHS, index=(datetime.now().month-1))
     month_sel = MONTHS.index(month_name) + 1
-
     symbols = sorted([s for s in df["symbol"].dropna().unique()]) if not df.empty else []
     sym_choice = st.sidebar.multiselect("Símbolos", options=symbols, default=symbols)
 
     st.title("📊 Trading Journal Pro — Supabase")
 
-  # Mes actual filtrado
-df_m = month_filter(df, year_sel, month_sel)
-if sym_choice:
-    df_m = df_m[(df_m["symbol"].isin(sym_choice)) | (df_m["symbol"].isna())]
+    # 3) Mes actual filtrado
+    df_m = month_filter(df, year_sel, month_sel)
+    if sym_choice:
+        df_m = df_m[(df_m["symbol"].isin(sym_choice)) | (df_m["symbol"].isna())]
 
-# Calcula pts una vez y reutiliza
-if not df_m.empty:
-    df_m = df_m.copy()
-    # Usa "point" o "porcentaje", según tu columna
-    df_m["pts"] = df_m.apply(lambda r: _safe_pts(r, "porcentaje"), axis=1)
-    # df_m["pts"] = df_m.apply(lambda r: _safe_pts(r, "porcentaje"), axis=1)  # <- si cambiaste el nombre
-    df_m = df_m.sort_values("fecha")
+    # Calcula pts una vez
+    if not df_m.empty:
+        df_m = df_m.copy()
+        df_m["pts"] = df_m.apply(lambda r: _safe_pts(r, "point"), axis=1)  # o "porcentaje" si renombraste
+        df_m = df_m.sort_values("fecha")
 
-# 1) Calendario mensual (PRIMERO)
-st.subheader(f"Calendario Mensual — {MONTHS[month_sel-1]} {year_sel}")
-if not df_m.empty:
-    df_m["day"] = pd.to_datetime(df_m["fecha"]).dt.day
-    # suma diaria de pts
-    daily_map = df_m.groupby("day")["pts"].sum().to_dict()
-else:
-    daily_map = {}
-st.markdown(calendar_html(year_sel, month_sel, daily_map), unsafe_allow_html=True)
+    # === Calendario primero ===
+    st.subheader(f"Calendario Mensual — {MONTHS[month_sel-1]} {year_sel}")
+    if not df_m.empty:
+        df_m["day"] = pd.to_datetime(df_m["fecha"]).dt.day
+        daily_map = df_m.groupby("day")["pts"].sum().to_dict()
+    else:
+        daily_map = {}
+    st.markdown(calendar_html(year_sel, month_sel, daily_map), unsafe_allow_html=True)
 
-st.markdown("---")
+    st.markdown("---")
 
-# 2) Equity mensual (DESPUÉS)
-st.subheader(f"Equity Mensual — {MONTHS[month_sel-1]} {year_sel}")
-if not df_m.empty:
-    df_m_eq = df_m[["fecha", "pts"]].copy()
-    df_m_eq["equity_m"] = df_m_eq["pts"].cumsum()
-    chart_m = (
-        alt.Chart(df_m_eq)
-        .mark_line(point=True)
-        .encode(
+    # === Equity mensual después ===
+    st.subheader(f"Equity Mensual — {MONTHS[month_sel-1]} {year_sel}")
+    if not df_m.empty:
+        df_m_eq = df_m[["fecha","pts"]].copy()
+        df_m_eq["equity_m"] = df_m_eq["pts"].cumsum()
+        chart_m = alt.Chart(df_m_eq).mark_line(point=True).encode(
             x=alt.X("fecha:T", title="Fecha"),
             y=alt.Y("equity_m:Q", title="Acumulado (mes)"),
-            tooltip=["fecha:T", "equity_m:Q"],
-        )
-        .properties(height=300)
-    )
-    st.altair_chart(chart_m, use_container_width=True)
-else:
-    st.info("Sin trades en el mes seleccionado.")
+            tooltip=["fecha:T","equity_m:Q"],
+        ).properties(height=300)
+        st.altair_chart(chart_m, use_container_width=True)
+    else:
+        st.info("Sin trades en el mes seleccionado.")
+
 
 
 
@@ -480,6 +471,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
