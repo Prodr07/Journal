@@ -128,7 +128,7 @@ def fetch_trades(user_id: str) -> pd.DataFrame:
     data = (
         supabase
         .table("Trades")  # comillas porque la tabla tiene T mayúscula
-        .select('id,"User_id",fecha,semana,dia,symbol,PORCENTAJE,be,trade,created_at')
+        .select('id,"User_id",fecha,semana,dia,symbol,point,be,trade,created_at')
         .eq("User_id", user_id)
         .order("fecha", desc=False)
         .execute()
@@ -136,7 +136,7 @@ def fetch_trades(user_id: str) -> pd.DataFrame:
     rows = data.data if hasattr(data, "data") else []
     df = pd.DataFrame(rows)
     if df.empty:
-        return pd.DataFrame(columns=["id","User_id","fecha","semana","dia","symbol","PORCENTAJE","be","trade","created_at"]) 
+        return pd.DataFrame(columns=["id","User_id","fecha","semana","dia","symbol","point","be","trade","created_at"]) 
     df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce").dt.date
     return df
 
@@ -151,7 +151,7 @@ def insert_trade_entries(user_id: str, fecha_val: date, semana_txt: str, dia_txt
             "semana": semana_txt,
             "dia": dia_txt,
             "symbol": t["symbol"],
-            "PORCENTAJE": int(t["points"]),
+            "point": int(t["points"]),
             "be": bool(t["is_be"]),
             "trade": trade_text,
         })
@@ -216,8 +216,8 @@ def compute_metrics(df_trades: pd.DataFrame):
         }
 
     df = df_trades.copy()
-    df["PORCENTAJE"] = df["PORCENTAJE"].astype(float)
-    df["pts"] = df.apply(lambda r: 0 if bool(r.get("be", False)) else int(r.get("PORCENTAJE") or 0), axis=1)
+    df["point"] = df["point"].astype(float)
+    df["pts"] = df.apply(lambda r: 0 if bool(r.get("be", False)) else int(r.get("point") or 0), axis=1)
     df = df.sort_values("fecha")
 
     # Equity global
@@ -327,12 +327,12 @@ def app_view():
     st.subheader(f"Equity Mensual — {MONTHS[month_sel-1]} {year_sel}")
     if not df_m.empty:
         df_m = df_m.copy()
-        df_m["PORCENTAJE"] = df_m["PORCENTAJE"].astype(float)
-        df_m["pts"] = df_m.apply(lambda r: 0 if bool(r.get("be", False)) else int(r.get("PORCENTAJE") or 0), axis=1)
+        df_m["point"] = df_m["point"].astype(float)
+        df_m["pts"] = df_m.apply(lambda r: 0 if bool(r.get("be", False)) else int(r.get("point") or 0), axis=1)
         df_m = df_m.sort_values("fecha")
         df_m_eq = df_m[["fecha","pts"]].copy()
         df_m_eq["equity_m"] = df_m_eq["pts"].cumsum()
-        chart_m = alt.Chart(df_m_eq).mark_line(PORCENTAJE=True).encode(
+        chart_m = alt.Chart(df_m_eq).mark_line(point=True).encode(
             x=alt.X("fecha:T", title="Fecha"),
             y=alt.Y("equity_m:Q", title="Puntos acumulados (mes)"),
             tooltip=["fecha:T","equity_m:Q"],
@@ -345,7 +345,7 @@ def app_view():
           # Calendario mensual (suma por día)
     st.subheader("Calendario Mensual")
     if not df_m.empty:
-        df_m_grp = df_m.groupby(pd.to_datetime(df_m["fecha"]).dt.day).agg(puntos=("PORCENTAJE", lambda s: int(np.nansum([0 if pd.isna(x) else x for x in s])))).reset_index()
+        df_m_grp = df_m.groupby(pd.to_datetime(df_m["fecha"]).dt.day).agg(puntos=("point", lambda s: int(np.nansum([0 if pd.isna(x) else x for x in s])))).reset_index()
         daily_map = {int(r["fecha"] if "fecha" in r else r["day"]): int(r["puntos"]) for _, r in df_m_grp.rename(columns={"fecha":"day"}).iterrows()}
     else:
         daily_map = {}
@@ -360,7 +360,7 @@ def app_view():
     with colA:
         st.subheader("Equity Global")
         if not metrics["equity_df"].empty:
-            chart = alt.Chart(metrics["equity_df"]).mark_line(PORCENTAJE=True).encode(
+            chart = alt.Chart(metrics["equity_df"]).mark_line(point=True).encode(
                 x=alt.X("fecha:T", title="Fecha"),
                 y=alt.Y("equity:Q", title="Puntos acumulados"),
                 tooltip=["fecha:T","equity:Q"],
@@ -429,7 +429,7 @@ def app_view():
             df_monthly = pd.DataFrame({
                 "year": pd.to_datetime(df["fecha"]).dt.year,
                 "month": pd.to_datetime(df["fecha"]).dt.month,
-                "pts": df.apply(lambda r: 0 if bool(r.get("be", False)) else int(r.get("PORCENTAJE") or 0), axis=1)
+                "pts": df.apply(lambda r: 0 if bool(r.get("be", False)) else int(r.get("point") or 0), axis=1)
             })
             monthly = df_monthly.groupby(["year","month"]).agg(total_pts=("pts","sum"), trades=("pts","count")).reset_index()
             monthly["Periodo"] = monthly.apply(lambda r: f"{MONTHS[int(r['month'])-1]} {int(r['year'])}", axis=1)
@@ -443,6 +443,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
