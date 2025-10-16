@@ -49,6 +49,25 @@ st.markdown(
 if "auth" not in st.session_state:
     st.session_state.auth = {"user": None, "access_token": None}
 
+def _safe_pts(row, colname="point"):
+    """Devuelve puntos/porcentaje como float.
+    Soporta None, '', 'nan', '2.5', '2.5%', etc. y respeta BE."""
+    if bool(row.get("be", False)):
+        return 0.0
+    v = row.get(colname, 0)
+    if v is None:
+        return 0.0
+    if isinstance(v, str):
+        v = v.strip()
+        if v.endswith("%"):
+            v = v[:-1]  # quita el símbolo
+        if v == "" or v.lower() in {"nan", "none"}:
+            return 0.0
+    try:
+        return float(v)
+    except Exception:
+        return 0.0
+
 
 def do_sign_in(email: str, password: str):
     try:
@@ -216,8 +235,12 @@ def compute_metrics(df_trades: pd.DataFrame):
         }
 
     df = df_trades.copy()
-    df["point"] = df["point"].astype(float).round(2).astype(str) + "%"
-    df["pts"] = df.apply(lambda r: 0 if bool(r.get("be", False)) else int(r.get("point") or 0), axis=1)
+# Si tu columna se llama "point"
+    df["pts"] = df.apply(lambda r: _safe_pts(r, "point"), axis=1)
+
+# Si la cambiaste a "porcentaje", usa esta en su lugar:
+# df["pts"] = df.apply(lambda r: _safe_pts(r, "porcentaje"), axis=1)
+
     df = df.sort_values("fecha")
 
     # Equity global
@@ -327,8 +350,10 @@ def app_view():
     st.subheader(f"Equity Mensual — {MONTHS[month_sel-1]} {year_sel}")
     if not df_m.empty:
         df_m = df_m.copy()
-        df_m["point"] = df_m["point"].astype(float)
-        df_m["pts"] = df_m.apply(lambda r: 0 if bool(r.get("be", False)) else int(r.get("point") or 0), axis=1)
+        df_m["pts"] = df_m.apply(lambda r: _safe_pts(r, "point"), axis=1)
+# o "porcentaje" si renombraste:
+# df_m["pts"] = df_m.apply(lambda r: _safe_pts(r, "porcentaje"), axis=1)
+
         df_m = df_m.sort_values("fecha")
         df_m_eq = df_m[["fecha","pts"]].copy()
         df_m_eq["equity_m"] = df_m_eq["pts"].cumsum()
@@ -429,7 +454,10 @@ def app_view():
             df_monthly = pd.DataFrame({
                 "year": pd.to_datetime(df["fecha"]).dt.year,
                 "month": pd.to_datetime(df["fecha"]).dt.month,
-                "pts": df.apply(lambda r: 0 if bool(r.get("be", False)) else int(r.get("point") or 0), axis=1)
+                "pts": df.apply(lambda r: _safe_pts(r, "point"), axis=1)
+# o:
+# "pts": df.apply(lambda r: _safe_pts(r, "porcentaje"), axis=1)
+
             })
             monthly = df_monthly.groupby(["year","month"]).agg(total_pts=("pts","sum"), trades=("pts","count")).reset_index()
             monthly["Periodo"] = monthly.apply(lambda r: f"{MONTHS[int(r['month'])-1]} {int(r['year'])}", axis=1)
@@ -443,6 +471,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
