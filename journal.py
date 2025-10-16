@@ -351,7 +351,7 @@ if sym_choice:
 if not df_m.empty:
     df_m = df_m.copy()
     # Usa "point" o "porcentaje", según tu columna
-    df_m["pts"] = df_m.apply(lambda r: _safe_pts(r, "point"), axis=1)
+    df_m["pts"] = df_m.apply(lambda r: _safe_pts(r, "porcentaje"), axis=1)
     # df_m["pts"] = df_m.apply(lambda r: _safe_pts(r, "porcentaje"), axis=1)  # <- si cambiaste el nombre
     df_m = df_m.sort_values("fecha")
 
@@ -480,6 +480,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
