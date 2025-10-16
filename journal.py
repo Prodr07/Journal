@@ -109,15 +109,15 @@ def parse_trades_cell(cell: str):
         if not m:
             if it in {"None","nan","error","-error",""}:
                 continue
-            parsed.append({"symbol": None, "points": 0, "is_be": False, "raw": it})
+            parsed.append({"symbol": None, "porcentaje": 0, "is_be": False, "raw": it})
             continue
         sym = m.group("sym")
         body = m.group("body")
         if body == "BE":
-            parsed.append({"symbol": sym, "points": 0, "is_be": True, "raw": it})
+            parsed.append({"symbol": sym, "porcentaje": 0, "is_be": True, "raw": it})
         else:
             pts = int(m.group("signed"))
-            parsed.append({"symbol": sym, "points": pts, "is_be": False, "raw": it})
+            parsed.append({"symbol": sym, "porcentaje": pts, "is_be": False, "raw": it})
     return parsed
 
 # =========================
@@ -151,7 +151,7 @@ def insert_trade_entries(user_id: str, fecha_val: date, semana_txt: str, dia_txt
             "semana": semana_txt,
             "dia": dia_txt,
             "symbol": t["symbol"],
-            "point": int(t["points"]),
+            "point": int(t["porcentaje"]),
             "be": bool(t["is_be"]),
             "trade": trade_text,
         })
@@ -443,6 +443,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
