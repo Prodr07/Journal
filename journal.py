@@ -334,7 +334,7 @@ def app_view():
         df_m_eq["equity_m"] = df_m_eq["pts"].cumsum()
         chart_m = alt.Chart(df_m_eq).mark_line(point=True).encode(
             x=alt.X("fecha:T", title="Fecha"),
-            y=alt.Y("equity_m:Q", title="Puntos acumulados (mes)"),
+            y=alt.Y("equity_m:Q", title="porcentaje acumulados (mes)"),
             tooltip=["fecha:T","equity_m:Q"],
         ).properties(height=300)
         st.altair_chart(chart_m, use_container_width=True)
@@ -345,8 +345,8 @@ def app_view():
           # Calendario mensual (suma por día)
     st.subheader("Calendario Mensual")
     if not df_m.empty:
-        df_m_grp = df_m.groupby(pd.to_datetime(df_m["fecha"]).dt.day).agg(puntos=("point", lambda s: int(np.nansum([0 if pd.isna(x) else x for x in s])))).reset_index()
-        daily_map = {int(r["fecha"] if "fecha" in r else r["day"]): int(r["puntos"]) for _, r in df_m_grp.rename(columns={"fecha":"day"}).iterrows()}
+        df_m_grp = df_m.groupby(pd.to_datetime(df_m["fecha"]).dt.day).agg(porcentaje=("point", lambda s: int(np.nansum([0 if pd.isna(x) else x for x in s])))).reset_index()
+        daily_map = {int(r["fecha"] if "fecha" in r else r["day"]): int(r["porcentaje"]) for _, r in df_m_grp.rename(columns={"fecha":"day"}).iterrows()}
     else:
         daily_map = {}
     st.markdown(calendar_html(year_sel, month_sel, daily_map), unsafe_allow_html=True)
@@ -362,7 +362,7 @@ def app_view():
         if not metrics["equity_df"].empty:
             chart = alt.Chart(metrics["equity_df"]).mark_line(point=True).encode(
                 x=alt.X("fecha:T", title="Fecha"),
-                y=alt.Y("equity:Q", title="Puntos acumulados"),
+                y=alt.Y("equity:Q", title="porcentaje acumulados"),
                 tooltip=["fecha:T","equity:Q"],
             ).properties(height=360)
             st.altair_chart(chart, use_container_width=True)
@@ -434,7 +434,7 @@ def app_view():
             monthly = df_monthly.groupby(["year","month"]).agg(total_pts=("pts","sum"), trades=("pts","count")).reset_index()
             monthly["Periodo"] = monthly.apply(lambda r: f"{MONTHS[int(r['month'])-1]} {int(r['year'])}", axis=1)
             monthly = monthly.sort_values(["year","month"]) 
-            st.dataframe(monthly[["Periodo","total_pts","trades"]].rename(columns={"total_pts":"Puntos","trades":"#Trades"}), use_container_width=True)
+            st.dataframe(monthly[["Periodo","total_pts","trades"]].rename(columns={"total_pts":"porcentaje","trades":"#Trades"}), use_container_width=True)
 
 # =========================
 # 🚦 Router
@@ -443,6 +443,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
