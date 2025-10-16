@@ -187,36 +187,125 @@ def month_filter(df: pd.DataFrame, year: int, month: int) -> pd.DataFrame:
     return df[(pd.to_datetime(df["fecha"]).dt.year == year) & (pd.to_datetime(df["fecha"]).dt.month == month)].copy()
 
 
-def calendar_html(year: int, month: int, daily_points: dict):
-    def bg_color(p):
-        if pd.isna(p):
-            return "#ffffff"
-        if p > 200: return "#d4edda"
-        if p > 100: return "#e8f5e8"
-        if p > 50:  return "#f0f9f0"
-        if p > 0:   return "#f8fdf8"
-        if p < -100: return "#f8d7da"
-        if p < -50:  return "#fae6e8"
-        if p < 0:    return "#fdf0f2"
-        return "#ffffff"
+import calendar as _pycal
 
-    cal = calendar.Calendar(firstweekday=6)
-    month_days = cal.monthdayscalendar(year, month)
-    html = "<table class='calendar'>\n<tr><th>DOM</th><th>LUN</th><th>MAR</th><th>MIE</th><th>JUE</th><th>VIE</th><th>SAB</th></tr>\n"
-    for week in month_days:
-        html += "<tr>"
+def calendar_html(year: int, month: int, daily_points: dict[int, float], daily_counts: dict[int, int] | None = None) -> str:
+    """
+    daily_points: {dia -> suma_de_puntos_o_%}
+    daily_counts: {dia -> cantidad_de_trades} (opcional)
+    """
+
+    # ===== helpers de color (verde para +, rojo para -) =====
+    vals = list(daily_points.values()) if daily_points else [0]
+    max_abs = max(1, max(abs(v) for v in vals))
+
+    def bg_for(v: float) -> str:
+        """Color de fondo según magnitud relativa."""
+        if v is None:
+            return "#101317"  # vacío
+        if v == 0:
+            return "#151A21"  # neutro
+        # intensidad 0..1
+        t = min(1.0, abs(v) / max_abs)
+        # color base
+        if v > 0:
+            # verdes
+            # mezclar #1C2B23 (oscuro) con #1F4630 (más brillante)
+            r1,g1,b1 = (0x1C, 0x2B, 0x23)
+            r2,g2,b2 = (0x1F, 0x46, 0x30)
+        else:
+            # rojos
+            r1,g1,b1 = (0x2B, 0x1C, 0x21)
+            r2,g2,b2 = (0x46, 0x1F, 0x2C)
+        r = int(r1 + (r2-r1)*t)
+        g = int(g1 + (g2-g1)*t)
+        b = int(b1 + (b2-b1)*t)
+        return f"rgb({r},{g},{b})"
+
+    def txt_for(v: float) -> str:
+        if v is None or v == 0:
+            return "#cbd5e1"  # gris claro
+        return "#6ee7b7" if v > 0 else "#fca5a5"  # verde/rojo claro
+
+    # ===== CSS =====
+    css = """
+    <style>
+    .cal-wrap{width:100%;overflow-x:auto}
+    table.cal{width:100%;border-collapse:separate;border-spacing:10px;}
+    .cal thead th{
+      background: linear-gradient(135deg,#5662D6,#6C49B8);
+      color:#fff;text-align:center;padding:14px;border-radius:12px;
+      font-weight:800;letter-spacing:.03em
+    }
+    .cal td{
+      background:#101317;border-radius:14px;vertical-align:top;
+      height:120px;padding:10px 10px; position:relative;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+    }
+    .cal .day-badge{
+      position:absolute;top:8px;left:10px;
+      width:28px;height:28px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-weight:700;background:#0f172a;color:#e2e8f0;border:1px solid rgba(255,255,255,.05)
+    }
+    .cal .value{
+      margin-top:34px;text-align:center;font-weight:800;font-size:22px;
+      line-height:1;color:#e2e8f0;text-shadow:0 1px 0 rgba(0,0,0,.25)
+    }
+    .cal .pill{
+      margin:8px auto 0 auto;display:inline-block;min-width:84px;text-align:center;
+      padding:6px 10px;border-radius:999px;font-size:12px;
+      background:rgba(255,255,255,.06);color:#cbd5e1;border:1px solid rgba(255,255,255,.07)
+    }
+    .cal .muted{opacity:.35}
+    </style>
+    """
+
+    # ===== Cabecera y grilla =====
+    cal = _pycal.Calendar(firstweekday=6)  # Domingo
+    weeks = cal.monthdayscalendar(year, month)
+    header = "<tr>" + "".join(f"<th>{d}</th>" for d in ["DOM","LUN","MAR","MIE","JUE","VIE","SAB"]) + "</tr>"
+
+    body_rows = []
+    for week in weeks:
+        tds = []
         for d in week:
             if d == 0:
-                html += "<td></td>"
-            else:
-                pts = daily_points.get(d, 0)
-                color = bg_color(pts)
-                html += f"<td style='background:{color}'>"
-                html += f"<span class='day-number'>{d}</span>"
-                html += f"<span class='badge'>{int(pts)}</span>"
-                html += "</td>"
-        html += "</tr>"
-    html += "</table>"
+                tds.append('<td class="muted"></td>')
+                continue
+
+            val = float(daily_points.get(d, 0)) if d in daily_points else 0.0
+            cnt = daily_counts.get(d, 0) if (daily_counts is not None) else None
+            bg = bg_for(val)
+            c  = txt_for(val)
+
+            # Formato del valor grande (usa % si lo tuyo ahora es porcentaje)
+            val_txt = f"{int(val)}"  # o f"{val:.1f}%" si quieres 1 decimal
+
+            pill_txt = f"{cnt} trade" + ("s" if (cnt or 0) != 1 else "") if cnt is not None else ""
+
+            tds.append(
+                f"""
+                <td style="background:{bg}">
+                  <div class="day-badge">{d}</div>
+                  <div class="value" style="color:{c}">{val_txt}</div>
+                  {f'<div class="pill">{pill_txt}</div>' if cnt is not None else ''}
+                </td>
+                """
+            )
+        body_rows.append("<tr>" + "".join(tds) + "</tr>")
+
+    html = f"""
+    <div class="cal-wrap">
+      {css}
+      <table class="cal">
+        <thead>{header}</thead>
+        <tbody>
+          {''.join(body_rows)}
+        </tbody>
+      </table>
+    </div>
+    """
     return html
 
 
@@ -471,6 +560,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
