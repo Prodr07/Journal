@@ -216,7 +216,7 @@ def compute_metrics(df_trades: pd.DataFrame):
         }
 
     df = df_trades.copy()
-    df["point"] = df["point"].astype(float)
+    df["point"] = df["point"].astype(float).round(2).astype(str) + "%"
     df["pts"] = df.apply(lambda r: 0 if bool(r.get("be", False)) else int(r.get("point") or 0), axis=1)
     df = df.sort_values("fecha")
 
@@ -443,6 +443,7 @@ if st.session_state.auth.get("user") is None:
     login_view()
 else:
     app_view()
+
 
 
 
